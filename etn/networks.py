@@ -304,10 +304,16 @@ class Bias(layers.Layer):
         self.b = self.add_weight(shape=(input_shape[-1],),
                                  dtype=tf.float32,
                                  initializer='zeros',
+                                 name='bias',
                                  trainable=True)
     
     def call(self, inputs, **kwargs):
         return inputs + self.activation(self.b)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({'bias': self.b})
+        return config
 
 
 def _centroid(heatmap, step, periodic=False):

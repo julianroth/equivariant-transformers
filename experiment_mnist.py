@@ -74,11 +74,6 @@ class MNISTModel:
 
         logging.info(str(self))
 
-        if load_path is not None:
-            ckpt = tf.train.Checkpoint(model=self.model)
-            ckpt.restore(load_path).assert_consumed()
-            logging.info('Model loaded at {}'.format(load_path))
-
         if net is None:
             raise ValueError('net parameter must be specified')
 
@@ -123,6 +118,11 @@ class MNISTModel:
         self.net_opts = net_opts
         self.seed = seed
         self.model = self._build_model(net=network, transformer=seq, coords=coords, downsample=downsample)
+        
+        if load_path is not None:
+            ckpt = tf.train.Checkpoint(model=self.model)
+            ckpt.restore(load_path).assert_existing_objects_matched()
+            logging.info('Model loaded at {}'.format(load_path))
 
         logging.info('Net opts: %s' % str(net_opts))
         logging.info('Transformer opts: %s' % str(tf_opts))
@@ -224,7 +224,7 @@ class MNISTModel:
     def test(self, batch_size=100, path=None):
         """Test the model."""
         if path is None:
-            raise ValueError('test_path must be specified')
+            raise ValueError('path must be specified')
         logging.info('loading test data from %s' % path)
         ds, _ = self._load_dataset(path, which='test')
         ds = ds.shuffle(10000).batch(batch_size, drop_remainder=False)
@@ -248,7 +248,8 @@ class MNISTModel:
 
     def _train(self, optim, ds):
         losses = []
-        for x, y in tqdm(ds):
+        num_elements = tf.data.experimental.cardinality(ds).numpy()
+        for x, y in tqdm(ds, total=num_elements):
             y = tf.one_hot(y, 10)
             with tf.GradientTape() as tape:
                 logits, _ = self.model(x)
@@ -263,7 +264,8 @@ class MNISTModel:
         total_loss = 0.
         total_err = 0.
         count = 0
-        for x, y in tqdm(ds):
+        num_elements = tf.data.experimental.cardinality(ds).numpy()
+        for x, y in tqdm(ds, total=num_elements):
             y = tf.one_hot(y, 10, dtype=tf.int64)
             count += tf.shape(x)[0]
             logits, _ = self.model(x, training=False)
