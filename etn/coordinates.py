@@ -144,7 +144,7 @@ def scalex_grid(output_size, ulim=(None, 0), vlim=(-1, 1)):
         tf.Tensor, type tf.float32, shape (output_size[0], output_size[1], 2),
         tensor where entry (i, j) gives the (x, y) coordinate of the grid point.
     """
-    nv, nu = output_size
+    nv, nu = output_size[0], output_size[1]
     if ulim[0] is None:
         ulim = (-tf.math.log(tf.cast(nu, dtype=tf.float32) / 2.), ulim[1])
     vs, us = _grid_prepare((nv // 2, nu), ulim, vlim)
@@ -173,7 +173,7 @@ def scaley_grid(output_size, ulim=(None, 0), vlim=(-1, 1)):
         tf.Tensor, type tf.float32, shape (output_size[0], output_size[1], 2),
         tensor where entry (i, j) gives the (x, y) coordinate of the grid point.
     """
-    nv, nu = output_size
+    nv, nu = output_size[0], output_size[1]
     if ulim[0] is None:
         ulim = (-tf.math.log(tf.cast(nu, dtype=tf.float32) / 2.), ulim[1])
     vs, us = _grid_prepare((nv // 2, nu), ulim, vlim)
@@ -202,7 +202,7 @@ def hyperbolic_grid(output_size, ulim=(-np.sqrt(0.5), np.sqrt(0.5)), vlim=(-np.l
         tf.Tensor, type tf.float32, shape (output_size[0], output_size[1], 2),
         tensor where entry (i, j) gives the (x, y) coordinate of the grid point.
     """
-    nv, nu = output_size
+    nv, nu = output_size[0], output_size[1]
     vs, us = _grid_prepare((nv // 2, nu), ulim, vlim)
     
     rs = tf.exp(vs)
@@ -230,7 +230,7 @@ def perspectivex_grid(output_size, ulim=(1, 8), vlim=(-0.99 * np.pi / 2, 0.99 * 
         tf.Tensor, type tf.float32, shape (output_size[0], output_size[1], 2),
         tensor where entry (i, j) gives the (x, y) coordinate of the grid point.
     """
-    nv, nu = output_size
+    nv, nu = output_size[0], output_size[1]
     vs, us = _grid_prepare((nv // 2, nu), ulim, vlim)
     
     xl = -tf.math.reciprocal(tf.reverse(us, [1]))
@@ -259,7 +259,7 @@ def perspectivey_grid(output_size, ulim=(1, 8), vlim=(-0.99 * np.pi / 2, 0.99 * 
         tf.Tensor, type tf.float32, shape (output_size[0], output_size[1], 2),
         tensor where entry (i, j) gives the (x, y) coordinate of the grid point.
     """
-    nv, nu = output_size
+    nv, nu = output_size[0], output_size[1]
     vs, us = _grid_prepare((nv // 2, nu), ulim, vlim)
     
     yl = -tf.math.reciprocal(tf.reverse(us, [1]))

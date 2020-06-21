@@ -121,7 +121,8 @@ class MNISTModel:
         
         if load_path is not None:
             ckpt = tf.train.Checkpoint(model=self.model)
-            ckpt.restore(load_path).assert_existing_objects_matched()
+            ckpt_manager = tf.train.CheckpointManager(ckpt, load_path, 1)
+            ckpt_manager.restore_or_initialize()
             logging.info('Model loaded at {}'.format(load_path))
 
         logging.info('Net opts: %s' % str(net_opts))
@@ -204,7 +205,7 @@ class MNISTModel:
         for i in range(num_epochs):
             # train for one epoch
             logging.info('Training epoch %d' % (i + 1))
-            train_losses = self._train(optim, train_ds)
+            train_losses = self._train_epoch(optim, train_ds)
         
             # evaluate on validation set
             logging.info('Evaluating model on validation set')
@@ -245,36 +246,48 @@ class MNISTModel:
             return probs, out[1]
         else:
             return probs
-
-    def _train(self, optim, ds):
+    
+    def _train_epoch(self, optim, ds):
         losses = []
         num_elements = tf.data.experimental.cardinality(ds).numpy()
         for x, y in tqdm(ds, total=num_elements):
-            y = tf.one_hot(y, 10)
-            with tf.GradientTape() as tape:
-                logits, _ = self.model(x)
-                loss = tf.nn.softmax_cross_entropy_with_logits(y, logits)
-                loss = tf.math.reduce_mean(loss)
-            grads = tape.gradient(loss, self.model.trainable_weights)
-            optim.apply_gradients(zip(grads, self.model.trainable_weights))
+            loss = self._train_step(x, y, optim)
             losses.append(loss.numpy())
         return losses
 
+    @tf.function
+    def _train_step(self, x, y, optim):
+        y = tf.one_hot(y, 10)
+        with tf.GradientTape() as tape:
+            logits, _ = self.model(x)
+            loss = tf.nn.softmax_cross_entropy_with_logits(y, logits)
+            loss = tf.math.reduce_mean(loss)
+        grads = tape.gradient(loss, self.model.trainable_weights)
+        optim.apply_gradients(zip(grads, self.model.trainable_weights))
+        return loss
+    
     def _test(self, ds):
         total_loss = 0.
         total_err = 0.
         count = 0
         num_elements = tf.data.experimental.cardinality(ds).numpy()
         for x, y in tqdm(ds, total=num_elements):
-            y = tf.one_hot(y, 10, dtype=tf.int64)
             count += tf.shape(x)[0]
-            logits, _ = self.model(x, training=False)
-            yhat = tf.argmax(logits, axis=-1)
-            total_err += tf.math.reduce_sum(tf.cast(y != yhat, dtype=tf.int64)).numpy()
-            total_loss += tf.math.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(y, logits)).numpy()
+            err, loss = self._test_step(x, y)
+            total_err += err.numpy()
+            total_loss += loss.numpy()
         loss = total_loss / count
         err_rate = total_err / count
         return loss, err_rate
+    
+    @tf.function
+    def _test_step(self, x, y):
+        y = tf.one_hot(y, 10, dtype=tf.int64)
+        logits, _ = self.model(x, training=False)
+        yhat = tf.argmax(logits, axis=-1)
+        err = tf.math.reduce_sum(tf.cast(y != yhat, dtype=tf.int64))
+        loss = tf.math.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(y, logits))
+        return err, loss
 
 
 if __name__ == '__main__':
